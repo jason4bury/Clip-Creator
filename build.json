@@ -1,0 +1,15 @@
+{
+  "AppName": "Clip Creator",
+  "EntryScript": "src\\Clip-Creator.ps1",
+  "Icon": "assets\\Clip-Creator.ico",
+  "Side": "Home",
+  "IncludeFiles": [],
+  "Description": "PowerShell/WinForms tool for making a random theme clip from every movie in a folder",
+  "Ps2exe": {
+    "STA": true,
+    "NoConsole": true,
+    "NoOutput": true,
+    "NoError": true,
+    "NoConfigFile": true
+  }
+}

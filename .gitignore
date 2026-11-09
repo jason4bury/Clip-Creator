@@ -1,0 +1,46 @@
+# Settings and reports live in %APPDATA%\Clip Creator, outside the repo.
+
+# Builds live in ..\Builds\, outside the repo. Safety net in case one lands here.
+Builds/
+*.exe
+
+# FFmpeg copied next to the script for testing (install it with winget instead)
+ffmpeg.exe
+ffprobe.exe
+
+# Generated clips, test media and reports - keep your library out of git
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.m4v
+*.wmv
+*.mpg
+*.mpeg
+*.ts
+*.m2ts
+*.webm
+*.part
+Clip-Creator-*Report*.html
+Clip-Creator-*Log*.html
+output/
+Random Clips/
+
+# Logs, temp files and backups (Build-Exe.log, editor backups)
+*.log
+*.tmp
+*.bak*
+
+# Local config and secrets
+config.local.json
+.env
+
+# Windows clutter
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Editor
+.vscode/
+.idea/
+*.swp
