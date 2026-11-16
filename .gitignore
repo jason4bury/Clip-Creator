@@ -3,6 +3,7 @@
 # Builds live in ..\Builds\, outside the repo. Safety net in case one lands here.
 Builds/
 *.exe
+*.lnk
 
 # FFmpeg copied next to the script for testing (install it with winget instead)
 ffmpeg.exe
@@ -26,7 +27,7 @@ Clip-Creator-*Log*.html
 output/
 Random Clips/
 
-# Logs, temp files and backups (Build-Exe.log, editor backups)
+# Logs, temp files and backups (Build.log, editor backups)
 *.log
 *.tmp
 *.bak*

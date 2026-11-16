@@ -6,7 +6,7 @@
 
 A Windows app that makes one short random clip from every movie in a folder, ready to use as a Jellyfin, Emby or Kodi theme video.
 
-![Version](https://img.shields.io/badge/version-v1.00-blue) ![Platform](https://img.shields.io/badge/platform-Windows-0078D6) ![PowerShell](https://img.shields.io/badge/PowerShell-5.1-5391FE) ![Licence](https://img.shields.io/badge/licence-MIT-green) ![Last commit](https://img.shields.io/github/last-commit/jason4bury/Clip-Creator)
+![Version](https://img.shields.io/badge/version-v1.01-blue) ![Platform](https://img.shields.io/badge/platform-Windows-0078D6) ![PowerShell](https://img.shields.io/badge/PowerShell-5.1-5391FE) ![Licence](https://img.shields.io/badge/licence-MIT-green) ![Last commit](https://img.shields.io/github/last-commit/jason4bury/Clip-Creator)
 
 ## ✨ Features
 
@@ -31,27 +31,30 @@ Clip Creator is a front end for [FFmpeg](https://ffmpeg.org/). For each movie it
 ## 📋 Requirements
 
 - Windows 10 or 11 with Windows PowerShell 5.1 (built in, nothing to install)
-- [FFmpeg](https://ffmpeg.org/) with `ffmpeg.exe` and `ffprobe.exe`. The easiest way is `winget install Gyan.FFmpeg`, which adds both to `PATH`. You can also put the two files in the same folder as Clip Creator. The **Check FFmpeg** button says whether they were found
+- [FFmpeg](https://ffmpeg.org/) with `ffmpeg.exe` and `ffprobe.exe`. The easiest way is `winget install Gyan.FFmpeg`, which adds both to `PATH`. You can also put the two files in the same folder as `Clip-Creator.ps1`. The **Check FFmpeg** button says whether they were found
 
 ## 📦 Installation
 
-**Exe:** download `Clip Creator v1.00.exe` from the [latest release](../../releases/latest) and run it. Nothing else to install apart from FFmpeg.
+1. Download `Clip-Creator-v1.01.zip` from the [latest release](../../releases/latest). Right-click it, choose **Properties** and tick **Unblock** *before* unzipping, so Windows doesn't block the scripts. Then unzip it wherever you like to keep it.
+2. Double-click **Clip Creator.cmd** in the unzipped folder. It makes a **Clip Creator** shortcut there and in the Start menu, and starts Clip Creator. From then on, use the shortcut, the Start menu or a pinned taskbar button.
 
-**Script:** clone or download the repo, then double-click **`Start Clip Creator.cmd`**. It starts Clip Creator with an execution-policy bypass for that run only; no Windows settings are changed. If you downloaded a zip and Windows blocks the files, right-click the zip, choose **Properties**, tick **Unblock**, then unzip it again.
+Nothing is installed apart from FFmpeg, and no Windows settings are changed. The shortcut runs the script with PowerShell's execution policy bypassed for that run only. If Clip Creator doesn't open, run `"Clip Creator.cmd" debug` from a command prompt in that folder to see any errors.
 
-### Build the exe
+**From the repo:** clone it, or download it as a zip (unblock it first, as above), then double-click **Start Clip Creator.cmd**.
 
-Builds use the standard build script, which reads `build.json`, runs PSScriptAnalyzer, compiles the exe with [ps2exe](https://github.com/MScholtes/PS2EXE) and saves it to the project's `Builds\` folder (outside the repo) as `Clip Creator v<version>.exe`:
+**Updating from v1.00 (the exe):** unzip the new release, double-click **Clip Creator.cmd**, and delete `Clip Creator v1.00.exe` and any shortcut to it. Your settings and reports are in `%APPDATA%\Clip Creator\`, so they carry straight over. If you kept `ffmpeg.exe` and `ffprobe.exe` beside the old exe, move them into the new folder (beside `Clip-Creator.ps1`) or install FFmpeg with winget.
 
-```powershell
-E:\Created\_shared\Build-Tool.ps1 -Project "E:\Created\Home\Clip-Creator"
-```
+### Why no exe
 
-Until the shared build script is in place, double-click `Build-Exe.cmd` in the repo folder instead. It does the same build in Windows PowerShell 5.1 (no admin rights needed): it checks the script for syntax errors, installs ps2exe for your user the first time, and saves its output to `Build-Exe.log`. The version comes from `$AppVersion` at the top of `src\Clip-Creator.ps1`, which matches the newest CHANGELOG entry.
+Home tools used to ship as PS2EXE exes, and antivirus programs (ESET among them) kept flagging those exes as generic trojans by mistake. A plain script and a shortcut give the same one-click start without the false alarms, and you can read exactly what runs.
 
-Some antivirus programs are wary of new ps2exe-built programs. If yours blocks the exe, allow it or keep using `Start Clip Creator.cmd`.
+### Build a release
+
+Double-click **Build.cmd** in the repo folder. It reads `build.json`, checks every script for syntax errors and that `$AppVersion` matches the newest `CHANGELOG.md` entry, runs PSScriptAnalyzer if it's installed, copies the release files into `..\Builds\Clip Creator v<version>\`, zips that folder for the GitHub release, refreshes `..\Builds\Clip Creator.lnk` (what the Home Launcher starts) and scans the result with ESET's command-line scanner if it's installed.
 
 ## 🚀 Usage
+
+Start Clip Creator from its shortcut, the Start menu or **Clip Creator.cmd**.
 
 1. Choose your **Movies folder**, for example `V:\Movies` or `\\NAS\Movies`.
 2. Choose an **Output folder**. Use a separate folder to check the clips first, or the movies folder itself to save them straight into your library.
@@ -81,7 +84,7 @@ Press **Stop** once to stop after the clip that's being made. Press it again to 
 - **A mapped drive is missing from Browse**: drives mapped as your normal user don't show up in programs run as administrator. Start Clip Creator normally; it doesn't need admin rights. Typing or pasting a `\\NAS\share` path always works.
 - **A movie is marked ERROR**: the report shows FFmpeg's message. Damaged files and some old formats can't be read; the run carries on with the next movie.
 - **The time left jumps about**: it's based on the movies done so far, so it settles as the run goes on.
-- **"Running scripts is disabled"**: start it with `Start Clip Creator.cmd`, which bypasses the execution policy for Clip Creator only.
+- **"Running scripts is disabled"**: start it with the Clip Creator shortcut or **Clip Creator.cmd**, which bypass the execution policy for Clip Creator only.
 - **Something went wrong**: details are written to `Logs\crash.log` in the data folder (see Configuration).
 
 ## ⚙️ Configuration
@@ -110,4 +113,4 @@ See [CHANGELOG.md](CHANGELOG.md). History from before the v1.00 renumbering is i
 
 MIT, see [LICENSE](LICENSE). Copyright (c) 2026 Jason Rhodes.
 
-Clip Creator uses [FFmpeg](https://ffmpeg.org/), which you install separately; it isn't included in this repository or the exe. FFmpeg is licensed under the LGPL/GPL and is a trademark of Fabrice Bellard. Written with AI assistance from ChatGPT (OpenAI), and reviewed and rebuilt with Claude (Anthropic). Font: Segoe UI from Microsoft Windows.
+Clip Creator uses [FFmpeg](https://ffmpeg.org/), which you install separately; it isn't included in this repository or the release. FFmpeg is licensed under the LGPL/GPL and is a trademark of Fabrice Bellard. Written with AI assistance from ChatGPT (OpenAI), and reviewed and rebuilt with Claude (Anthropic). Font: Segoe UI from Microsoft Windows.

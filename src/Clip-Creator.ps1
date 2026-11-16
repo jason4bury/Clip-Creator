@@ -11,28 +11,33 @@
     Settings and reports are kept in %APPDATA%\Clip Creator\.
 
 .NOTES
-    Version:   1.00
+    Version:   1.01
     Author:    Jason Rhodes
     Licence:   MIT, Copyright (c) 2026 Jason Rhodes
     Repo:      https://github.com/jason4bury/Clip-Creator
     Requires:  Windows PowerShell 5.1 (or PowerShell 7), ffmpeg.exe and ffprobe.exe
-               on PATH or beside the script/exe.
+               on PATH or beside the script.
 #>
 
 $AppName    = 'Clip Creator'
-$AppVersion = '1.00'
+$AppVersion = '1.01'
 $Copyright  = 'Copyright (c) 2026 Jason Rhodes'
 $RepoUrl    = 'https://github.com/jason4bury/Clip-Creator'
+$AppId      = 'jason4bury.Clip-Creator'   # taskbar ID, the same as the shortcut's
 
 # ---------------------------------------------------------------------------
 # Start-up
 # ---------------------------------------------------------------------------
 
-$script:IsExe = [System.Diagnostics.Process]::GetCurrentProcess().ProcessName -notmatch '^(powershell|pwsh|powershell_ise)$'
+# Clip Creator runs as a script (there's no exe since v1.01). Its folder holds the assets in a
+# release; in the repo they're in ..\assets, beside src\.
+$script:ProgramDir = $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($script:ProgramDir) -and $PSCommandPath) { $script:ProgramDir = Split-Path -Parent $PSCommandPath }
+if ([string]::IsNullOrWhiteSpace($script:ProgramDir)) { $script:ProgramDir = (Get-Location).Path }
 
-# Windows Forms dialogs need a single-threaded apartment. The exe is built with -STA;
-# a script started some other way is restarted in Windows PowerShell with -STA.
-if (-not $script:IsExe -and [System.Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA' -and $PSCommandPath) {
+# Windows Forms dialogs need a single-threaded apartment. The shortcut and Clip Creator.cmd
+# start it with -STA; a script started some other way is restarted in Windows PowerShell with -STA.
+if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA' -and $PSCommandPath) {
     Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-STA', '-File', ('"{0}"' -f $PSCommandPath))
     return
@@ -41,10 +46,19 @@ if (-not $script:IsExe -and [System.Threading.Thread]::CurrentThread.GetApartmen
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
+# Taskbar ID: the same as the Clip Creator shortcut's, so the taskbar button shows Clip Creator's
+# icon (not PowerShell's) and pinning it pins Clip Creator. Set before any window opens.
+try {
+    if (-not ('HomeTool.Shell' -as [type])) {
+        Add-Type -Namespace 'HomeTool' -Name 'Shell' -MemberDefinition '[DllImport("shell32.dll", CharSet = CharSet.Unicode)] public static extern int SetCurrentProcessExplicitAppUserModelID(string appId);'
+    }
+    [void][HomeTool.Shell]::SetCurrentProcessExplicitAppUserModelID($AppId)
+} catch { Write-Verbose "No taskbar ID: $($_.Exception.Message)" }
+
 # The process is DPI-aware and the window scales itself: every pixel size goes through
 # S below (AutoScaleMode is None), and fonts are in points so Windows scales them. This
-# must run before the first window is created, and gives the script and the exe the
-# same sharp layout instead of a stretched bitmap.
+# must run before the first window is created, and gives a sharp layout instead of a
+# stretched bitmap.
 try {
     if (-not ('ClipCreatorNative' -as [type])) {
         Add-Type -TypeDefinition @'
@@ -236,17 +250,9 @@ function Write-CrashLog([string]$Context, $ErrorRecord) {
 # ---------------------------------------------------------------------------
 
 function Find-Tool([string]$Name) {
-    # Beside the script or exe first, then PATH. PS2EXE can leave $PSScriptRoot empty,
-    # so the exe's own folder is checked as well.
-    $folders = New-Object System.Collections.Generic.List[string]
-    if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) { $folders.Add($PSScriptRoot) }
-    try {
-        $exeFolder = [System.IO.Path]::GetDirectoryName([System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName)
-        if (-not [string]::IsNullOrWhiteSpace($exeFolder)) { $folders.Add($exeFolder) }
-    } catch { Write-Verbose $_.Exception.Message }
-
-    foreach ($folder in ($folders | Select-Object -Unique)) {
-        $candidate = [System.IO.Path]::Combine($folder, "$Name.exe")
+    # Beside the script first, then PATH
+    if (-not [string]::IsNullOrWhiteSpace($script:ProgramDir)) {
+        $candidate = [System.IO.Path]::Combine($script:ProgramDir, "$Name.exe")
         if ([System.IO.File]::Exists($candidate)) { return $candidate }
     }
 
@@ -996,14 +1002,14 @@ $form.MinimumSize = New-Object System.Drawing.Size((S 900), (S 660))
 $form.BackColor = $Colour.Page
 $form.Font = New-Font 9.75
 
-# Window and taskbar icon: the exe's own icon, or assets\Clip-Creator.ico beside src\
+# Window and taskbar icon: assets\Clip-Creator.ico beside the script (a release), else in
+# ..\assets (the repo)
 try {
-    if ($script:IsExe) {
-        $form.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon([System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName)
-    } elseif ($PSScriptRoot) {
-        $iconPath = [System.IO.Path]::Combine((Split-Path -Parent $PSScriptRoot), 'assets', 'Clip-Creator.ico')
-        if ([System.IO.File]::Exists($iconPath)) { $form.Icon = New-Object System.Drawing.Icon($iconPath) }
-    }
+    $iconPath = @(
+        [System.IO.Path]::Combine($script:ProgramDir, 'assets', 'Clip-Creator.ico'),
+        [System.IO.Path]::Combine((Split-Path -Parent $script:ProgramDir), 'assets', 'Clip-Creator.ico')
+    ) | Where-Object { [System.IO.File]::Exists($_) } | Select-Object -First 1
+    if ($iconPath) { $form.Icon = New-Object System.Drawing.Icon($iconPath) }
 } catch { Write-Verbose "Icon not loaded: $($_.Exception.Message)" }
 
 $tip = New-Object System.Windows.Forms.ToolTip

@@ -3,13 +3,19 @@
   "EntryScript": "src\\Clip-Creator.ps1",
   "Icon": "assets\\Clip-Creator.ico",
   "Side": "Home",
-  "IncludeFiles": [],
   "Description": "PowerShell/WinForms tool for making a random theme clip from every movie in a folder",
-  "Ps2exe": {
-    "STA": true,
-    "NoConsole": true,
-    "NoOutput": true,
-    "NoError": true,
-    "NoConfigFile": true
+  "RequireAdmin": false,
+  "Release": {
+    "Files": {
+      "Clip-Creator.ps1": "src\\Clip-Creator.ps1",
+      "New-ClipCreatorShortcut.ps1": "src\\New-ClipCreatorShortcut.ps1",
+      "Clip Creator.cmd": "release\\Clip Creator.cmd",
+      "assets\\Clip-Creator.ico": "assets\\Clip-Creator.ico",
+      "assets\\Clip-Creator.png": "assets\\Clip-Creator.png",
+      "README.md": "README.md",
+      "CHANGELOG.md": "CHANGELOG.md",
+      "LICENSE": "LICENSE"
+    },
+    "Shortcut": "New-ClipCreatorShortcut.ps1"
   }
 }

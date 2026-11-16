@@ -2,9 +2,32 @@
 
 All notable changes to Clip Creator are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), with versions numbered
-`<major>.<minor>` and a two-digit minor (v1.00, v1.01 ... v1.10) to match the exe file names.
+`<major>.<minor>` and a two-digit minor (v1.00, v1.01 ... v1.10) to match the release names.
 
 ## [Unreleased]
+
+## [1.01] - 2026-11-16
+### Changed
+- **No exe any more.** Antivirus programs (ESET among them) kept flagging the PS2EXE exe as a
+  generic trojan by mistake, so Clip Creator now ships as its script, like the other Home tools.
+  The release is `Clip-Creator-v1.01.zip`: unzip it and double-click **Clip Creator.cmd**, which
+  makes a **Clip Creator** shortcut (in that folder and in the Start menu) that starts Clip Creator
+  without a console window. `"Clip Creator.cmd" debug` starts it in the console to show any errors.
+  Settings and reports stay in `%APPDATA%\Clip Creator`, so nothing needs moving.
+- The taskbar button shows Clip Creator's own icon (not PowerShell's), and pinning it pins Clip
+  Creator: the script sets the same taskbar ID (`jason4bury.Clip-Creator`) as the shortcut.
+- The window icon comes from `assets\Clip-Creator.ico`, beside the script in a release or in
+  `Source\assets\` in the repo.
+- FFmpeg beside the program now means beside `Clip-Creator.ps1` (FFmpeg on `PATH` works as before).
+- `Build.cmd` (the Home template build) replaces `Build-Exe.cmd`. It checks the scripts and the
+  version, runs PSScriptAnalyzer, makes `Builds\Clip Creator v<version>\` and its zip, refreshes
+  `Builds\Clip Creator.lnk` for the Home Launcher and scans the build with ESET if it's installed.
+  `build.json` has a Release section instead of the ps2exe options.
+
+### Internal
+- Exe-only code removed (the exe check, the exe-folder FFmpeg look-up and taking the icon from
+  the exe). New `src\New-ClipCreatorShortcut.ps1` (template shortcut maker) and
+  `release\Clip Creator.cmd`. `.gitignore` covers `*.lnk`.
 
 ## [1.00] - 2026-11-07
 First release in the house style, and a full review and rebuild of the script. Version
