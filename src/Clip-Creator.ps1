@@ -20,7 +20,7 @@
 #>
 
 $AppName    = 'Clip Creator'
-$AppVersion = '1.01'
+$AppVersion = '1.02'
 $Copyright  = 'Copyright (c) 2026 Jason Rhodes'
 $RepoUrl    = 'https://github.com/jason4bury/Clip-Creator'
 $AppId      = 'jason4bury.Clip-Creator'   # taskbar ID, the same as the shortcut's
@@ -1265,10 +1265,143 @@ function Add-Log([string]$Text, [System.Drawing.Color]$Color = [System.Drawing.C
     $txtLog.ScrollToCaret()
 }
 
+# Message and question boxes in Clip Creator's own look (they replace Windows' plain grey MessageBox):
+# a navy header with a coloured badge, the message on a white card, and blue / slate buttons.
+# $Buttons and $Icon take the same values as MessageBox ('OK', 'YesNo', 'YesNoCancel'; 'Information',
+# 'Warning', 'Error', 'Question') and the answer is the same ('OK', 'Yes', 'No' or 'Cancel'), so
+# callers don't change. $Labels puts plain words on the buttons instead, in the same order.
+# The first button is the main one (Enter); the last is pressed by Esc or the X.
+$MessageKinds = @{
+    Information = @{ Glyph = 'i';               Color = $Colour.Blue;  Heading = 'Good to know' }
+    Warning     = @{ Glyph = '!';               Color = [System.Drawing.Color]::FromArgb(230, 150, 30); Heading = 'Heads up' }
+    Error       = @{ Glyph = [string][char]0xD7; Color = $Colour.Red;   Heading = 'Something went wrong' }
+    Question    = @{ Glyph = '?';               Color = $Colour.Blue;  Heading = 'Just checking' }
+}
 function Show-Message([string]$Text, [string]$Title = $AppName,
-                      [System.Windows.Forms.MessageBoxButtons]$Buttons = 'OK',
-                      [System.Windows.Forms.MessageBoxIcon]$Icon = 'Information') {
-    [System.Windows.Forms.MessageBox]::Show($form, $Text, $Title, $Buttons, $Icon)
+                      [string]$Buttons = 'OK',
+                      [string]$Icon = 'Information',
+                      [string[]]$Labels = @()) {
+    $kind = $script:MessageKinds[$Icon]
+    if (-not $kind) { $kind = $script:MessageKinds['Information'] }
+    $heading = $kind.Heading
+    if ($Title -and $Title -ne $AppName) { $heading = $Title }
+    $results = @(switch ($Buttons) {
+        'YesNo'       { @('Yes', 'No') }
+        'YesNoCancel' { @('Yes', 'No', 'Cancel') }
+        'OKCancel'    { @('OK', 'Cancel') }
+        default       { @('OK') }
+    })
+
+    $dlg = New-Object System.Windows.Forms.Form
+    $dlg.SuspendLayout()
+    $dlg.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::None
+    $dlg.Text = $AppName
+    $dlg.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $dlg.MaximizeBox = $false
+    $dlg.MinimizeBox = $false
+    $dlg.ShowInTaskbar = $false
+    $dlg.BackColor = $Colour.Card
+    $dlg.Font = New-Font 9.75
+    if ($form -and $form.Icon) { $dlg.Icon = $form.Icon }
+    $width = S 460
+    if ($Text.Length -gt 380) { $width = S 560 }
+
+    # Header: navy band with the badge and the heading
+    $head = New-Object System.Windows.Forms.Panel
+    $head.Dock = [System.Windows.Forms.DockStyle]::Top
+    $head.Height = S 56
+    $head.BackColor = $Colour.Navy
+    $badge = New-Object System.Windows.Forms.Label
+    $badge.Size = New-Object System.Drawing.Size((S 28), (S 28))
+    $badge.Location = New-Object System.Drawing.Point((S 18), (S 14))
+    $badge.BackColor = $kind.Color
+    $badge.ForeColor = [System.Drawing.Color]::White
+    $badge.Font = New-Font 11 ([System.Drawing.FontStyle]::Bold)
+    $badge.Text = $kind.Glyph
+    $badge.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $round = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $round.AddEllipse(0, 0, (S 28), (S 28))
+    $badge.Region = New-Object System.Drawing.Region($round)
+    $headLabel = New-Object System.Windows.Forms.Label
+    $headLabel.AutoSize = $true
+    $headLabel.Text = $heading
+    $headLabel.ForeColor = [System.Drawing.Color]::White
+    $headLabel.Font = New-Font 13 ([System.Drawing.FontStyle]::Bold)
+    $headLabel.Location = New-Object System.Drawing.Point((S 56), (S 15))
+    $head.Controls.AddRange(@($badge, $headLabel))
+
+    # Message: read-only text box so it wraps, scrolls if long and can be copied
+    $msg = New-Object System.Windows.Forms.TextBox
+    $msg.Multiline = $true
+    $msg.ReadOnly = $true
+    $msg.TabStop = $false
+    $msg.BorderStyle = [System.Windows.Forms.BorderStyle]::None
+    $msg.BackColor = $Colour.Card
+    $msg.ForeColor = $Colour.Text
+    $msg.Font = New-Font 10
+    $msg.Text = ($Text -replace "(?<!`r)`n", "`r`n")
+    $msg.Width = $width - (S 44)
+    $msg.Location = New-Object System.Drawing.Point((S 22), (S 74))
+    $measure = [System.Windows.Forms.TextRenderer]::MeasureText($msg.Text + "`r`n", $msg.Font, (New-Object System.Drawing.Size($msg.Width, 0)), [System.Windows.Forms.TextFormatFlags]::WordBreak)
+    $textHeight = [Math]::Min((S 420), $measure.Height)
+    if ($measure.Height -gt (S 420)) { $msg.ScrollBars = [System.Windows.Forms.ScrollBars]::Vertical }
+    $msg.Height = $textHeight
+
+    # Buttons: main (blue) on the left of the row, the rest slate, Cancel / No last on the right
+    $bar = New-Object System.Windows.Forms.FlowLayoutPanel
+    $bar.Dock = [System.Windows.Forms.DockStyle]::Bottom
+    $bar.FlowDirection = [System.Windows.Forms.FlowDirection]::RightToLeft
+    $bar.BackColor = $Colour.Page
+    $bar.Padding = New-Object System.Windows.Forms.Padding((S 14), (S 10), (S 14), (S 10))
+    $bar.AutoSize = $true
+    $bar.AutoSizeMode = [System.Windows.Forms.AutoSizeMode]::GrowAndShrink
+    for ($i = $results.Count - 1; $i -ge 0; $i--) {
+        $caption = $results[$i]
+        if ($Labels -and $i -lt $Labels.Count -and $Labels[$i]) { $caption = $Labels[$i] }
+        $b = New-Object System.Windows.Forms.Button
+        $b.Text = $caption
+        $b.Tag = $results[$i]
+        $b.AutoSize = $true
+        $b.AutoSizeMode = [System.Windows.Forms.AutoSizeMode]::GrowAndShrink
+        $b.MinimumSize = New-Object System.Drawing.Size((S 90), (S 32))
+        $b.Padding = New-Object System.Windows.Forms.Padding((S 10), (S 2), (S 10), (S 2))
+        $b.Margin = New-Object System.Windows.Forms.Padding((S 8), 0, 0, 0)
+        $b.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+        $b.FlatAppearance.BorderSize = 0
+        $back = if ($i -eq 0) { $Colour.ButtonBlue } else { $Colour.Slate }
+        $b.BackColor = $back
+        $b.FlatAppearance.MouseOverBackColor = [System.Windows.Forms.ControlPaint]::Dark($back, 0.05)
+        $b.FlatAppearance.MouseDownBackColor = [System.Windows.Forms.ControlPaint]::Dark($back, 0.15)
+        $b.ForeColor = [System.Drawing.Color]::White
+        $b.Font = New-Font 9.75 $(if ($i -eq 0) { [System.Drawing.FontStyle]::Bold } else { [System.Drawing.FontStyle]::Regular })
+        $b.Cursor = [System.Windows.Forms.Cursors]::Hand
+        $b.UseVisualStyleBackColor = $false
+        $b.Add_Click({ param($s, $e) $s.FindForm().Tag = [string]$s.Tag; $s.FindForm().Close() })
+        $bar.Controls.Add($b)
+        if ($i -eq 0) { $dlg.AcceptButton = $b }
+        if ($i -eq $results.Count - 1) { $dlg.CancelButton = $b }
+    }
+
+    $dlg.Controls.Add($msg)
+    $dlg.Controls.Add($bar)
+    $dlg.Controls.Add($head)
+    $bar.PerformLayout()
+    $dlg.ClientSize = New-Object System.Drawing.Size($width, ((S 74) + $textHeight + (S 20) + $bar.PreferredSize.Height))
+    $dlg.ResumeLayout($false)
+    # focus the safe (last) button, so a stray Space doesn't confirm; Enter still presses the main one
+    $dlg.Add_Shown({ param($s, $e) try { $s.CancelButton.Focus() } catch { Write-Verbose $_.Exception.Message } })
+    if ($form -and $form.Visible) {
+        $dlg.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterParent
+        [void]$dlg.ShowDialog($form)
+    } else {
+        $dlg.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+        $dlg.TopMost = $true
+        [void]$dlg.ShowDialog()
+    }
+    $answer = [string]$dlg.Tag
+    if (-not $answer) { $answer = $results[-1] }
+    $dlg.Dispose()
+    $answer
 }
 
 function Select-Folder([string]$Title, [string]$InitialPath) {
@@ -1369,9 +1502,8 @@ function Get-ExistingClipChoice([string]$Movie) {
     # 'Replace', 'Keep' or 'Stop'
     $mode = (Get-CurrentSetting).ExistingClip
     if ($mode -ne 'Ask') { return $mode }
-    $answer = Show-Message ("There's already a clip for:`r`n`r`n$Movie`r`n`r`n" +
-        "Yes = replace it`r`nNo = keep it and carry on`r`nCancel = keep it and stop here") `
-        'Clip already exists' 'YesNoCancel' 'Question'
+    $answer = Show-Message "There's already a clip for:`r`n`r`n$Movie`r`n`r`nReplace it, keep it and carry on, or keep it and stop here?" `
+        'Clip already exists' 'YesNoCancel' 'Question' @('Replace it', 'Keep it', 'Keep it and stop')
     switch ($answer) {
         'Yes'   { 'Replace' }
         'No'    { 'Keep' }
@@ -1595,10 +1727,10 @@ function Invoke-ClipRun {
             Add-Log "Finished. Made $created clip(s)." ([System.Drawing.Color]::LightGreen)
             $question = "Finished.`r`n`r`nMade $created clip(s).`r`n`r`nView the report?"
         }
-        if ($reportPath -and (Show-Message $question $AppName 'YesNo' 'Information') -eq 'Yes') {
+        if ($reportPath -and (Show-Message $question $AppName 'YesNo' 'Information' @('View report', 'Not now')) -eq 'Yes') {
             Start-Process -FilePath $reportPath
         }
-        if ($created -gt 0 -and (Show-Message 'Open the output folder to see the clips?' $AppName 'YesNo' 'Question') -eq 'Yes') {
+        if ($created -gt 0 -and (Show-Message 'Open the output folder to see the clips?' $AppName 'YesNo' 'Question' @('Open folder', 'Not now')) -eq 'Yes') {
             Start-Process -FilePath 'explorer.exe' -ArgumentList ('"{0}"' -f $outputFolder)
         }
     } catch {
@@ -1654,6 +1786,7 @@ function Show-About {
     $lines = @(
         @('', 'PowerShell/WinForms tool for making a random theme clip from every movie in a folder. Each clip is saved as backdrops\theme.mp4 for Jellyfin, Emby or Kodi.'),
         @('', ($Copyright + '. Released under the MIT licence.')),
+        @('', 'New in 1.02: messages and questions open in Clip Creator''s own look (navy header, white card, blue buttons) instead of Windows'' grey box, with plainly named buttons such as Replace it, Keep it or View report.'),
         @('link', $RepoUrl),
         @('', 'Video processing by FFmpeg (ffmpeg.org), installed separately. FFmpeg is a trademark of Fabrice Bellard.'),
         @('', 'Written with AI assistance from ChatGPT (OpenAI), reviewed and rebuilt with Claude (Anthropic).'),
@@ -1786,7 +1919,7 @@ $form.Add_Shown({
 $form.Add_FormClosing({
     param($eventSource, $e)
     if ($script:State.Running) {
-        $answer = Show-Message 'Clips are still being made. Stop and close?' $AppName 'YesNo' 'Question'
+        $answer = Show-Message 'Clips are still being made. Stop and close?' $AppName 'YesNo' 'Question' @('Stop and close', 'Keep going')
         $e.Cancel = $true
         if ($answer -eq 'Yes') {
             # Stop straight away; the run finishes, saves its report, then closes the window

@@ -6,6 +6,20 @@ All notable changes to Clip Creator are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.02] - 2026-11-19
+### Changed
+- **Messages and questions in Clip Creator's own look.** Every message and question now opens in a
+  Clip Creator window (navy header with a coloured badge, the message on a white card, blue and slate
+  buttons) instead of Windows' plain grey message box. `Show-Message` draws it, keeping the same
+  answers (OK, Yes, No, Cancel), so the rest of the code didn't change. The text can be selected and
+  copied, and a long message scrolls.
+- Questions have plainly named buttons: an existing clip asks **Replace it**, **Keep it** or
+  **Keep it and stop**; the end of a run asks **View report** / **Not now** and **Open folder** /
+  **Not now**; closing during a run asks **Stop and close** or **Keep going**. Enter presses the main
+  button; the safe one has the focus, and Esc or the X picks it.
+- About notes what's new in 1.02.
+- Unchanged: the box shown if Clip Creator closes because of an error, and the folder pickers.
+
 ## [1.01] - 2026-11-16
 ### Changed
 - **No exe any more.** Antivirus programs (ESET among them) kept flagging the PS2EXE exe as a
