@@ -6,7 +6,7 @@
 
 A Windows app that makes one short random clip from every movie in a folder, ready to use as a Jellyfin, Emby or Kodi theme video.
 
-![Version](https://img.shields.io/badge/version-v1.02-blue) ![Platform](https://img.shields.io/badge/platform-Windows-0078D6) ![PowerShell](https://img.shields.io/badge/PowerShell-5.1-5391FE) ![Licence](https://img.shields.io/badge/licence-MIT-green) ![Last commit](https://img.shields.io/github/last-commit/jason4bury/Clip-Creator)
+![Version](https://img.shields.io/badge/version-v1.03-blue) ![Platform](https://img.shields.io/badge/platform-Windows-0078D6) ![PowerShell](https://img.shields.io/badge/PowerShell-5.1-5391FE) ![Licence](https://img.shields.io/badge/licence-MIT-green) ![Last commit](https://img.shields.io/github/last-commit/jason4bury/Clip-Creator)
 
 ## ✨ Features
 
@@ -22,6 +22,7 @@ Clip Creator is a front end for [FFmpeg](https://ffmpeg.org/). For each movie it
 - **Network friendly**: mapped drives and `\\NAS\share` paths work, and folders that can't be read are skipped rather than ending the run
 - **Colour HTML report** after every run (and partial runs), with created, warnings, errors and skipped, and FFmpeg's own messages for anything that went wrong
 - **Progress at a glance**: percentage, current movie, time left and clips created, with a colour log
+- **Light or dark**: Settings > Look picks Light, Dark or the same as Windows. **Help** (or F1) explains every setting
 - Remembers your folders and settings between runs
 
 ## 🖼️ Screenshots
@@ -35,7 +36,7 @@ Clip Creator is a front end for [FFmpeg](https://ffmpeg.org/). For each movie it
 
 ## 📦 Installation
 
-1. Download `Clip-Creator-v1.02.zip` from the [latest release](../../releases/latest). Right-click it, choose **Properties** and tick **Unblock** *before* unzipping, so Windows doesn't block the scripts. Then unzip it wherever you like to keep it.
+1. Download `Clip-Creator-v1.03.zip` from the [latest release](../../releases/latest). Right-click it, choose **Properties** and tick **Unblock** *before* unzipping, so Windows doesn't block the scripts. Then unzip it wherever you like to keep it.
 2. Double-click **Clip Creator.cmd** in the unzipped folder. It makes a **Clip Creator** shortcut there and in the Start menu, and starts Clip Creator. From then on, use the shortcut, the Start menu or a pinned taskbar button.
 
 Nothing is installed apart from FFmpeg, and no Windows settings are changed. The shortcut runs the script with PowerShell's execution policy bypassed for that run only. If Clip Creator doesn't open, run `"Clip Creator.cmd" debug` from a command prompt in that folder to see any errors.

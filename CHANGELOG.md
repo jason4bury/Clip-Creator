@@ -6,6 +6,16 @@ All notable changes to Clip Creator are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.03] - 2026-11-19
+### Added
+- **Dark look.** Settings has a new **Look** choice: **Light** (the look so far, and the default),
+  **Dark** or **Follow Windows**. Dark follows through the cards, inputs, progress bar, About, Help,
+  message boxes and the title bar; faded buttons fade towards the page instead of white. The look is
+  chosen when Clip Creator starts, so a change shows the next time it starts.
+- **Help.** A **Help** button in the header (or F1) explains what it does, getting started, each
+  setting, what happens while it runs, and the reports and log.
+- About notes what's new in 1.03.
+
 ## [1.02] - 2026-11-19
 ### Changed
 - **Messages and questions in Clip Creator's own look.** Every message and question now opens in a

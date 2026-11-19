@@ -20,7 +20,7 @@
 #>
 
 $AppName    = 'Clip Creator'
-$AppVersion = '1.02'
+$AppVersion = '1.03'
 $Copyright  = 'Copyright (c) 2026 Jason Rhodes'
 $RepoUrl    = 'https://github.com/jason4bury/Clip-Creator'
 $AppId      = 'jason4bury.Clip-Creator'   # taskbar ID, the same as the shortcut's
@@ -206,6 +206,7 @@ function Get-DefaultSetting {
         FileTypes         = $script:DefaultFileTypes
         IncludeSubfolders = $true
         ExistingClip      = 'Ask'
+        Theme             = 'Light'     # Light (the look so far), Dark or System (follow Windows)
     }
 }
 
@@ -876,20 +877,59 @@ P70pOQB/3PtLwoFiNgfq9GWygDab6/ofGJz/Vxvwz6ePMrdLvVUAZLyxvSv137zgAWx2T1nWf96DpzyX
 WIXlG+WkBQAAAABJRU5ErkJggg==
 '@
 
-$Colour = @{
-    Navy       = [System.Drawing.Color]::FromArgb(8, 29, 58)
-    NavyLight  = [System.Drawing.Color]::FromArgb(14, 52, 98)
-    Blue       = [System.Drawing.Color]::FromArgb(0, 105, 220)
-    SubText    = [System.Drawing.Color]::FromArgb(180, 215, 245)
-    Page       = [System.Drawing.Color]::FromArgb(236, 243, 250)
-    Card       = [System.Drawing.Color]::White
-    Text       = [System.Drawing.Color]::FromArgb(8, 29, 58)
-    Hint       = [System.Drawing.Color]::FromArgb(92, 108, 128)
-    LogBack    = [System.Drawing.Color]::FromArgb(12, 31, 53)
-    Green      = [System.Drawing.Color]::FromArgb(18, 150, 72)
-    Red        = [System.Drawing.Color]::FromArgb(214, 40, 56)
-    ButtonBlue = [System.Drawing.Color]::FromArgb(10, 96, 214)
-    Slate      = [System.Drawing.Color]::FromArgb(74, 85, 104)
+# Two looks with the same colour names: Light (navy and white, the look so far) and Dark.
+# The Theme setting picks one when Clip Creator starts (System follows Windows' app mode).
+function New-Rgb([int]$R, [int]$G, [int]$B) { [System.Drawing.Color]::FromArgb($R, $G, $B) }
+$script:Palettes = @{
+    Light = @{
+        Navy = (New-Rgb 8 29 58); NavyLight = (New-Rgb 14 52 98); Blue = (New-Rgb 0 105 220); SubText = (New-Rgb 180 215 245)
+        Page = (New-Rgb 236 243 250); Card = [System.Drawing.Color]::White; Text = (New-Rgb 8 29 58); Hint = (New-Rgb 92 108 128)
+        Heading = (New-Rgb 8 29 58); Body = (New-Rgb 40 55 75); Input = [System.Drawing.Color]::White; SmallButton = (New-Rgb 8 29 58)
+        SmallHover = (New-Rgb 14 52 98); LogBack = (New-Rgb 12 31 53); Green = (New-Rgb 18 150 72); Red = (New-Rgb 214 40 56)
+        ButtonBlue = (New-Rgb 10 96 214); Slate = (New-Rgb 74 85 104); Link = (New-Rgb 0 105 220)
+    }
+    Dark = @{
+        Navy = (New-Rgb 7 20 38); NavyLight = (New-Rgb 16 44 80); Blue = (New-Rgb 84 160 255); SubText = (New-Rgb 170 200 232)
+        Page = (New-Rgb 16 22 30); Card = (New-Rgb 26 34 46); Text = (New-Rgb 226 233 242); Hint = (New-Rgb 150 164 182)
+        Heading = (New-Rgb 140 194 255); Body = (New-Rgb 206 215 228); Input = (New-Rgb 18 25 34); SmallButton = (New-Rgb 44 62 88)
+        SmallHover = (New-Rgb 58 82 116); LogBack = (New-Rgb 10 18 28); Green = (New-Rgb 22 140 70); Red = (New-Rgb 196 40 56)
+        ButtonBlue = (New-Rgb 18 96 206); Slate = (New-Rgb 70 82 102); Link = (New-Rgb 120 180 255)
+    }
+}
+function Test-DarkLook([string]$Mode) {
+    if ($Mode -eq 'Dark') { return $true }
+    if ($Mode -eq 'System') {
+        try { return ([int](Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name AppsUseLightTheme -ErrorAction Stop).AppsUseLightTheme -eq 0) } catch { return $false }
+    }
+    return $false
+}
+$script:IsDark = Test-DarkLook ([string](Import-Setting).Theme)
+$Colour = $script:Palettes[$(if ($script:IsDark) { 'Dark' } else { 'Light' })]
+
+# Dark title bar to match the dark look (Windows 10 20H1 and later; older Windows ignores it).
+function Set-DarkTitleBar([System.Windows.Forms.Form]$Window) {
+    if (-not $script:IsDark) { return }
+    try {
+        if (-not ('ClipCreator.Dwm' -as [type])) {
+            Add-Type -Namespace 'ClipCreator' -Name 'Dwm' -MemberDefinition '[DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);'
+        }
+        $v = 1
+        [void][ClipCreator.Dwm]::DwmSetWindowAttribute($Window.Handle, 20, [ref]$v, 4)
+    } catch { Write-Verbose $_.Exception.Message }
+}
+
+# Text boxes, number boxes, lists and tick boxes in the look's colours (WinForms draws them light otherwise).
+function Set-InputColour($Parent) {
+    foreach ($c in $Parent.Controls) {
+        if ($c -is [System.Windows.Forms.RichTextBox]) { }
+        elseif ($c -is [System.Windows.Forms.TextBox] -or $c -is [System.Windows.Forms.NumericUpDown] -or $c -is [System.Windows.Forms.ComboBox]) {
+            $c.BackColor = $Colour.Input; $c.ForeColor = $Colour.Text
+            if ($script:IsDark -and $c -is [System.Windows.Forms.TextBox]) { $c.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle }
+            if ($script:IsDark -and $c -is [System.Windows.Forms.ComboBox]) { $c.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat }
+        }
+        elseif ($c -is [System.Windows.Forms.CheckBox]) { $c.ForeColor = $Colour.Text }
+        if ($c.Controls.Count) { Set-InputColour $c }
+    }
 }
 
 function New-Font([float]$Size, [System.Drawing.FontStyle]$Style = [System.Drawing.FontStyle]::Regular, [string]$Family = 'Segoe UI') {
@@ -917,7 +957,7 @@ function New-Card([string]$Title, [int]$Columns) {
     $card.ColumnCount = $Columns
     $card.AutoSize = $true
     $card.AutoSizeMode = [System.Windows.Forms.AutoSizeMode]::GrowAndShrink
-    $heading = New-Label $Title 12 ([System.Drawing.FontStyle]::Bold) $Colour.Navy
+    $heading = New-Label $Title 12 ([System.Drawing.FontStyle]::Bold) $Colour.Heading
     $heading.Margin = New-Object System.Windows.Forms.Padding((S 0), (S 0), (S 0), (S 8))
     [void]$card.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
     $card.Controls.Add($heading, 0, 0)
@@ -966,8 +1006,8 @@ function New-SmallButton([string]$Text) {
     $button.Padding = New-Object System.Windows.Forms.Padding((S 10), (S 2), (S 10), (S 2))
     $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $button.FlatAppearance.BorderSize = 0
-    $button.BackColor = $Colour.Navy
-    $button.FlatAppearance.MouseOverBackColor = $Colour.NavyLight
+    $button.BackColor = $Colour.SmallButton
+    $button.FlatAppearance.MouseOverBackColor = $Colour.SmallHover
     $button.ForeColor = [System.Drawing.Color]::White
     $button.Font = New-Font 9.75
     $button.Cursor = [System.Windows.Forms.Cursors]::Hand
@@ -981,6 +1021,11 @@ function Set-ActionEnabled([System.Windows.Forms.Button]$Button, [bool]$Enabled)
     $Button.Enabled = $Enabled
     $base = [System.Drawing.Color]$Button.Tag
     if ($Enabled) { $Button.BackColor = $base }
+    elseif ($script:IsDark) {
+        # Dark look: fade towards the page colour instead of towards white
+        $p = $Colour.Page
+        $Button.BackColor = [System.Drawing.Color]::FromArgb([int](($base.R + $p.R * 2) / 3), [int](($base.G + $p.G * 2) / 3), [int](($base.B + $p.B * 2) / 3))
+    }
     else { $Button.BackColor = [System.Windows.Forms.ControlPaint]::LightLight($base) }
 }
 
@@ -1103,6 +1148,22 @@ Add-CardRow $settingsCard @($lblAvoid, $numAvoid)
 Add-CardRow $settingsCard @((New-Label 'Movie file types'), $txtTypes)
 Add-CardRow $settingsCard @((New-Label 'If a clip already exists'), $cmbExisting)
 Add-CardRow $settingsCard @($chkRecursive) @(2)
+
+$cmbLook = New-Object System.Windows.Forms.ComboBox
+$cmbLook.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+[void]$cmbLook.Items.AddRange(@('Light', 'Dark', 'Follow Windows'))
+$lookIndex = @{ Light = 0; Dark = 1; System = 2 }[[string]$settings.Theme]
+if ($null -eq $lookIndex) { $lookIndex = 0 }
+$cmbLook.SelectedIndex = $lookIndex
+$cmbLook.Width = S 200
+$cmbLook.Anchor = [System.Windows.Forms.AnchorStyles]::Left
+$cmbLook.Margin = New-Object System.Windows.Forms.Padding((S 3), (S 4), (S 3), (S 4))
+$tip.SetToolTip($cmbLook, 'Light or dark colours, or the same as Windows. Used the next time Clip Creator starts.')
+$cmbLook.Add_SelectionChangeCommitted({
+    Export-Setting (Get-CurrentSetting)
+    Add-Log 'The new look is used the next time Clip Creator starts.' ([System.Drawing.Color]::LightSkyBlue)
+})
+Add-CardRow $settingsCard @((New-Label 'Look'), $cmbLook)
 $main.Controls.Add($settingsCard, 0, 1)
 
 # Progress card
@@ -1115,6 +1176,19 @@ $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
 $progressBar.Dock = [System.Windows.Forms.DockStyle]::Fill
 $progressBar.Height = S 22
 $progressBar.Margin = New-Object System.Windows.Forms.Padding((S 3), (S 2), (S 3), (S 6))
+if ($script:IsDark) {
+    # Windows draws the standard bar light grey; without its visual style it takes the look's colours.
+    $progressBar.BackColor = $Colour.Input; $progressBar.ForeColor = $Colour.Blue
+    $progressBar.Add_HandleCreated({
+        param($eventSource, $e)
+        try {
+            if (-not ('ClipCreator.UxTheme' -as [type])) {
+                Add-Type -Namespace 'ClipCreator' -Name 'UxTheme' -MemberDefinition '[DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] public static extern int SetWindowTheme(IntPtr hwnd, string app, string idList);'
+            }
+            [void][ClipCreator.UxTheme]::SetWindowTheme($eventSource.Handle, '', '')
+        } catch { Write-Verbose $_.Exception.Message }
+    })
+}
 $lblStatus = New-Label 'Ready' 9.75 ([System.Drawing.FontStyle]::Bold) $Colour.Blue
 $lblPercent = New-Label '0%' 9.75 ([System.Drawing.FontStyle]::Bold) $Colour.Blue
 $lblPercent.Anchor = [System.Windows.Forms.AnchorStyles]::Right
@@ -1247,10 +1321,20 @@ $btnAbout.FlatAppearance.MouseOverBackColor = $Colour.Blue
 $btnAbout.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
 $btnAbout.Location = New-Object System.Drawing.Point(($form.ClientSize.Width - (S 100)), (S 30))
 $header.Controls.Add($btnAbout)
+$btnHelp = New-SmallButton 'Help'
+$btnHelp.BackColor = $Colour.NavyLight
+$btnHelp.FlatAppearance.MouseOverBackColor = $Colour.Blue
+$btnHelp.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
+$btnHelp.Location = New-Object System.Drawing.Point(($form.ClientSize.Width - (S 190)), (S 30))
+$tip.SetToolTip($btnHelp, 'How Clip Creator works (F1)')
+$header.Controls.Add($btnHelp)
 $form.Controls.Add($header)
 
 $form.ResumeLayout($false)
 $form.PerformLayout()
+Set-InputColour $form
+$form.KeyPreview = $true
+$form.Add_HandleCreated({ Set-DarkTitleBar $form })
 
 # ---------------------------------------------------------------------------
 # Window behaviour
@@ -1301,6 +1385,7 @@ function Show-Message([string]$Text, [string]$Title = $AppName,
     $dlg.MinimizeBox = $false
     $dlg.ShowInTaskbar = $false
     $dlg.BackColor = $Colour.Card
+    $dlg.Add_HandleCreated({ param($eventSource, $e) Set-DarkTitleBar $eventSource })
     $dlg.Font = New-Font 9.75
     if ($form -and $form.Icon) { $dlg.Icon = $form.Icon }
     $width = S 460
@@ -1428,6 +1513,7 @@ function Get-CurrentSetting {
     $settings.FileTypes = $txtTypes.Text.Trim()
     $settings.IncludeSubfolders = $chkRecursive.Checked
     $settings.ExistingClip = @('Ask', 'Keep', 'Replace')[[Math]::Max(0, $cmbExisting.SelectedIndex)]
+    $settings.Theme = @('Light', 'Dark', 'System')[[Math]::Max(0, $cmbLook.SelectedIndex)]
     $settings
 }
 
@@ -1746,6 +1832,89 @@ function Invoke-ClipRun {
     }
 }
 
+function Show-Help {
+    <# How Clip Creator works, in its own look: a navy header and the topics on a card. #>
+    $topics = @(
+        ,@('What it does', "Clip Creator makes one short clip from a random point in every movie in a folder and saves it as backdrops\theme.mp4 inside that movie's folder, where Jellyfin, Emby and Kodi look for theme videos. A colour HTML report is saved after every run.")
+        ,@('Getting started', "1.  Movies folder: the folder that holds your movies (mapped drives and \\NAS\share paths work).`r`n2.  Output folder: where the clips go. Pick the movies folder itself to keep each clip beside its movie.`r`n3.  Press Create clips. FFmpeg must be installed: Check FFmpeg tells you how (winget install Gyan.FFmpeg).")
+        ,@('Settings', "Clip length: how long each clip is, in seconds.`r`nAvoid start/end: clips never start in the first, or end in the last, this many seconds, so they miss the opening titles and end credits when the movie is long enough.`r`nMovie file types: the extensions to look for.`r`nIf a clip already exists: ask each time, keep it, or replace it.`r`nInclude subfolders: one clip per movie folder, all the way down.`r`nLook: Light, Dark or the same as Windows, used the next time Clip Creator starts.")
+        ,@('While it runs', "Progress shows the current movie, how many clips are made and the time left. Stop finishes the clip it's making and stops; press Stop again to stop straight away. Closing the window while clips are being made asks first.")
+        ,@('Reports and the log', "The log shows every step. Reports opens the folder of HTML reports, one per run, listing every clip made, kept, skipped or failed.")
+        ,@('Keys', "F1  this help")
+    )
+    $dlg = New-Object System.Windows.Forms.Form
+    $dlg.Text = "Help  -  $AppName v$AppVersion"
+    $dlg.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterParent
+    $dlg.ClientSize = New-Object System.Drawing.Size((S 640), (S 560))
+    $dlg.MinimumSize = New-Object System.Drawing.Size((S 480), (S 400))
+    $dlg.ShowInTaskbar = $false
+    $dlg.BackColor = $Colour.Page
+    $dlg.Font = New-Font 9.75
+    if ($form -and $form.Icon) { $dlg.Icon = $form.Icon }
+    $dlg.Add_HandleCreated({ param($eventSource, $e) Set-DarkTitleBar $eventSource })
+
+    $head = New-Object System.Windows.Forms.Panel
+    $head.Dock = [System.Windows.Forms.DockStyle]::Top
+    $head.Height = S 56
+    $head.BackColor = $Colour.Navy
+    $headLabel = New-Object System.Windows.Forms.Label
+    $headLabel.AutoSize = $true
+    $headLabel.Text = 'Help'
+    $headLabel.ForeColor = [System.Drawing.Color]::White
+    $headLabel.Font = New-Font 14 ([System.Drawing.FontStyle]::Bold)
+    $headLabel.Location = New-Object System.Drawing.Point((S 20), (S 14))
+    $head.Controls.Add($headLabel)
+
+    $body = New-Object System.Windows.Forms.RichTextBox
+    $body.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $body.ReadOnly = $true
+    $body.BorderStyle = [System.Windows.Forms.BorderStyle]::None
+    $body.BackColor = $Colour.Card
+    $body.ForeColor = $Colour.Body
+    $body.Font = New-Font 10
+    $body.DetectUrls = $false
+    $pad = New-Object System.Windows.Forms.Panel
+    $pad.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $pad.BackColor = $Colour.Card
+    $pad.Padding = New-Object System.Windows.Forms.Padding((S 20), (S 14), (S 20), (S 14))
+    $pad.Controls.Add($body)
+    $outer = New-Object System.Windows.Forms.Panel
+    $outer.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $outer.Padding = New-Object System.Windows.Forms.Padding((S 14))
+    $outer.Controls.Add($pad)
+    foreach ($t in $topics) {
+        $body.SelectionFont = New-Font 12 ([System.Drawing.FontStyle]::Bold)
+        $body.SelectionColor = $Colour.Heading
+        $body.AppendText($t[0] + "`r`n")
+        $body.SelectionFont = New-Font 10
+        $body.SelectionColor = $Colour.Body
+        $body.AppendText($t[1] + "`r`n`r`n")
+    }
+    $body.SelectionStart = 0
+
+    $bar = New-Object System.Windows.Forms.FlowLayoutPanel
+    $bar.Dock = [System.Windows.Forms.DockStyle]::Bottom
+    $bar.FlowDirection = [System.Windows.Forms.FlowDirection]::RightToLeft
+    $bar.Padding = New-Object System.Windows.Forms.Padding((S 14), (S 10), (S 14), (S 10))
+    $bar.AutoSize = $true
+    $close = New-Object System.Windows.Forms.Button
+    $close.Text = 'Close'
+    $close.MinimumSize = New-Object System.Drawing.Size((S 90), (S 32))
+    $close.AutoSize = $true
+    $close.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $close.FlatAppearance.BorderSize = 0
+    $close.BackColor = $Colour.ButtonBlue
+    $close.ForeColor = [System.Drawing.Color]::White
+    $close.Font = New-Font 9.75 ([System.Drawing.FontStyle]::Bold)
+    $close.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $bar.Controls.Add($close)
+    $dlg.AcceptButton = $close; $dlg.CancelButton = $close
+
+    $dlg.Controls.Add($outer); $dlg.Controls.Add($bar); $dlg.Controls.Add($head)
+    [void]$dlg.ShowDialog($form)
+    $dlg.Dispose()
+}
+
 function Show-About {
     $about = New-Object System.Windows.Forms.Form
     $about.SuspendLayout()
@@ -1756,7 +1925,8 @@ function Show-About {
     $about.MaximizeBox = $false
     $about.MinimizeBox = $false
     $about.ShowInTaskbar = $false
-    $about.BackColor = [System.Drawing.Color]::White
+    $about.BackColor = $Colour.Card
+    $about.Add_HandleCreated({ param($s, $e) Set-DarkTitleBar $s })
     $about.Font = New-Font 9.75
     $about.AutoSize = $true
     $about.AutoSizeMode = [System.Windows.Forms.AutoSizeMode]::GrowAndShrink
@@ -1776,7 +1946,7 @@ function Show-About {
     $layout.Controls.Add($logo, 0, 0)
     $layout.SetRowSpan($logo, 2)
 
-    $title = New-Label $AppName 18 ([System.Drawing.FontStyle]::Bold) $Colour.Navy
+    $title = New-Label $AppName 18 ([System.Drawing.FontStyle]::Bold) $Colour.Heading
     $title.Margin = New-Object System.Windows.Forms.Padding((S 0), (S 4), (S 0), (S 0))
     $layout.Controls.Add($title, 1, 0)
     $version = New-Label "Version $AppVersion" 10 ([System.Drawing.FontStyle]::Regular) $Colour.Hint
@@ -1786,7 +1956,7 @@ function Show-About {
     $lines = @(
         @('', 'PowerShell/WinForms tool for making a random theme clip from every movie in a folder. Each clip is saved as backdrops\theme.mp4 for Jellyfin, Emby or Kodi.'),
         @('', ($Copyright + '. Released under the MIT licence.')),
-        @('', 'New in 1.02: messages and questions open in Clip Creator''s own look (navy header, white card, blue buttons) instead of Windows'' grey box, with plainly named buttons such as Replace it, Keep it or View report.'),
+        @('', 'New in 1.03: a dark look (Settings > Look: Light, Dark or Follow Windows) and a Help window (Help button or F1).'),
         @('link', $RepoUrl),
         @('', 'Video processing by FFmpeg (ffmpeg.org), installed separately. FFmpeg is a trademark of Fabrice Bellard.'),
         @('', 'Written with AI assistance from ChatGPT (OpenAI), reviewed and rebuilt with Claude (Anthropic).'),
@@ -1798,10 +1968,10 @@ function Show-About {
             $control = New-Object System.Windows.Forms.LinkLabel
             $control.Text = $line[1]
             $control.AutoSize = $true
-            $control.LinkColor = $Colour.Blue
+            $control.LinkColor = $Colour.Link
             $control.Add_LinkClicked({ Start-Process -FilePath $RepoUrl })
         } else {
-            $control = New-Label $line[1] 9.75 ([System.Drawing.FontStyle]::Regular) ([System.Drawing.Color]::FromArgb(40, 55, 75))
+            $control = New-Label $line[1] 9.75 ([System.Drawing.FontStyle]::Regular) $Colour.Body
             $control.MaximumSize = New-Object System.Drawing.Size((S 470), (S 0))
         }
         $control.Margin = New-Object System.Windows.Forms.Padding((S 2), (S 4), (S 0), (S 4))
@@ -1896,6 +2066,8 @@ $btnStart.Add_Click({
 })
 
 $btnAbout.Add_Click({ Show-About })
+$btnHelp.Add_Click({ Show-Help })
+$form.Add_KeyDown({ param($eventSource, $e) if ($e.KeyCode -eq 'F1') { Show-Help; $e.Handled = $true } })
 
 $form.Add_Shown({
     # Fit the window on small or scaled screens
@@ -1906,6 +2078,7 @@ $form.Add_Shown({
         $form.Location = $area.Location
     }
     $btnAbout.Left = $header.ClientSize.Width - $btnAbout.Width - (S 18)
+    $btnHelp.Left = $btnAbout.Left - $btnHelp.Width - (S 8)
     if (-not $txtMovies.Text) {
         Add-Log 'Welcome. Choose your movies folder and an output folder, then press Create clips.' ([System.Drawing.Color]::LightSkyBlue)
     } else {
